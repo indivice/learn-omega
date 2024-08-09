@@ -1,0 +1,263 @@
+# Building Layouts in OmegaONE
+
+The main reason why UI libraries like Omega exists, is to make the process of constructing user-interfaces easier.
+This is done, by creating a structure, called Layouts.
+
+We can build Layouts in OmegaJS using **Components**, which are isolated and re-usable code logic that helps to
+render some content on the browser.
+
+In this article, we will discuss how we can make static layouts, covering several aspects of building UI, best practices,
+recommendations, and design principles.
+
+## Video Lecture
+
+<img src="/omega-guide-making-layouts.svg" style={{ borderRadius: "8px", marginTop: "20px" }} />
+
+## Components in OmegaONE
+
+Components in the context of web development space, means isolated logic that when changed, is changed
+globally, requiring less efforts when updating certain parts of the interface.
+
+In OmegaONE, Layouts are made by composing these components. You can either create your own components from
+scratch, or directly use the built-ins.
+
+<img src="/omega-component-tree.png" style={{ borderRadius: "8px", marginTop: "20px", backgroundSize: 'cover' }} />
+
+## Creating a Component
+
+Let us create a simple hello world component
+
+```ts copy filename="src/main.ts"
+import { Render } from '@indivice/omega'
+import { Layout } from '@indivice/omega/compoonents'
+
+function HelloWorld() {
+
+    return Layout.Column({
+        child: "Hello World"
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: HelloWorld
+})
+```
+The `HelloWorld()` function is our component, which is returning a `Layout.Column({})` Component, which is
+one of the built-ins of OmegaONE. Almost every built-in component takes a child, or an array of children, except for few like `Content.BreakLine({})` because
+it does not require children.
+
+The `Render({})` function here takes your component structure, calls it internally, and puts in on the DOM that the user finally
+interacts with. In any application, the `Render` function is only called once, and it is provided with the root Component, from
+which every other component starts.
+
+## Accepting children
+
+One best thing about OmegaONE is that, the components are pure javascript function, and by that, I mean anything that is
+possible using pure javascript, is possible with OmegaONE too.
+
+You can accept children in your own custom component, or any other property, however you might see fit. For example, I can
+create a custom greeting message instead of `"Hello World"`
+
+```ts { 4, 7, 14 } copy filename="src/main.ts"
+import { Render } from '@indivice/omega'
+import { Layout } from '@indivice/omega/compoonents'
+
+function HelloWorld(greeting: string) {
+
+    return Layout.Column({
+        child: greeting
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: () => HelloWorld("Welcome, Mayukh")
+})
+```
+Now, instead of showing `"Hello World"`, it will show `"Welcome, Mayukh"`. Though it will not change the message
+based on some user input yet; which we will learn in the reactive layouts part.
+
+Let us now try accepting another component, say a showcase function!
+
+```ts {1-2, 4, 7-10, 17} copy filename="src/main.ts"
+import { Render, Component } from '@indivice/omega'
+import { Layout, Input } from '@indivice/omega/compoonents'
+
+function ShowCase(name: string, component: Component) {
+
+    return Layout.Column({
+        children: [
+            `This component was made by ${name}`,
+            component
+        ]
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: () => ShowCase("Mayukh", Input.Button({ child: "I am a button!" }))
+})
+```
+This will show the name of the person that made the component, as well as the component itself.
+
+## Styling our Component
+
+There are various methods of styling based on how you are using OmegaONE.
+
+### 1. Vite-Bundling
+
+If you are using vite, you can simply create external stylesheets and import them directly!
+
+```ts { 3, 8 } copy filename="main.ts" filename="src/main.ts"
+import { Render, Component } from '@indivice/omega'
+import { Layout, Input } from '@indivice/omega/compoonents'
+import './style.css'
+
+function ShowCase(name: string, component: Component) {
+
+    return Layout.Column({
+        id: "color-id", /*Or we can use class*/ class: "font",
+        children: [
+            `This component was made by ${name}`,
+            component
+        ]
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: () => ShowCase("Mayukh", Input.Button({ child: "I am a button!" }))
+})
+```
+```css copy filename="style.css"
+#color-id {
+    color: "red"; /*Or any other styling of your choice*/
+}
+
+.font {
+    font-family: "Manrope"
+}
+```
+
+### 2. Inline Styles
+
+We can use inline styles inside all components that supports it. If I have to be honest, all **UI** Components supports
+inline styling, the rest are technically not **UI** Components, they are dynamic helpers or builders.
+
+Just like in HTML, we can use the style property to give styles to our code!
+
+```ts {8-10} copy filename="src/main.ts"
+import { Render, Component } from '@indivice/omega'
+import { Layout, Input } from '@indivice/omega/compoonents'
+
+function ShowCase(name: string, component: Component) {
+
+    return Layout.Column({
+
+        style: {
+            color: "red"
+        },
+
+        id: "color-id",
+        children: [
+            `This component was made by ${name}`,
+            component
+        ]
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: () => ShowCase("Mayukh", Input.Button({ child: "I am a button!" }))
+})
+```
+The names of the styling in the inline format is a bit different. For example, `background-color` for normal
+css would be `backgroundColor` in the inline format, and this applies for all dash-separated style name in css.
+
+## Listening to Events
+
+One of the most important aspects of building web applications, is to listen to events. This is because, interfaces
+works on the basis of interaction, and events are the foundation of this component-interatction model. All interactions
+from a component is driven through events.
+
+In omega, we prefix a lowercase `on` before all events. For example, `onclick`, or `oninput`, and this applies for all
+the available events in HTML. [Click to see list of all UI events.](https://developer.mozilla.org/en-US/docs/Web/API/UI_Events)
+
+```ts { 8-10 } copy filename="src/main.ts"
+import { Render, Component } from '@indivice/omega'
+import { Layout, Input } from '@indivice/omega/compoonents'
+
+function ShowCase(name: string, component: Component) {
+
+    return Layout.Column({
+
+        onclick() {
+            alert("I was clicked!")
+        },
+
+        style: {
+            color: "red"
+        },
+
+        id: "color-id",
+        children: [
+            `This component was made by ${name}`,
+            component
+        ]
+    })
+    
+}
+
+Render({
+    selector: "#app",
+    app: () => ShowCase("Mayukh", Input.Button({ child: "I am a button!" }))
+})
+```
+
+## Library specific properties
+
+There are properties other than the ones provided by HTML. Here is the list of all the
+custom properties for all components:
+
+- `reference` -> Takes in a `State<HTMLElement>` and stores the current real-dom element in it. 
+Can be used to directly refer to a real dom element.
+
+- `ondestroy` -> Is a library specific event that triggers when the specific component is removed from the
+DOM.
+
+- `__driver__` -> Is a metadata-based property, which is used by Omega's driver, and are useful for developing
+custom components and custom renderers.
+
+import { Callout } from 'nextra/components'
+ 
+<Callout type='info'>
+    We will learn more about `reference` property in the **Reactive Layouts** article.
+</Callout>
+
+## Other Native components
+
+Aside from the pre-existing components we just saw, there are other useful components, that are technically not
+available in the web platform, but are implemented by Omega to make it more useful.
+
+- `Layout.Portal()`: Helps in creating component outside the component tree. This component is useful when
+showing overlays like modals or alerts, that needs to be at the top of every other components. The component
+will be outside a component, but can still use the logic of that component
+
+- `Layout.HTML()`: Helps in creating pure-html based content, that can also be dynamically updated. It takes
+either a raw string, or a dynamic callback function.
+
+We will learn all of them in our upcoming article **Reactive Layouts**
+
+## Next Steps
+
+In this article, we learned to create simple layouts, but real applications are almost always dynamic, and
+needs UI changing based on user interactions, which is very much lacking here.
+
+We will learn everything about reactive layouts in the next article, and build upon it, and making progress
+towards building a real application.

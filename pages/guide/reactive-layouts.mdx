@@ -1,0 +1,225 @@
+# Dynamic Layouts in OmegaONE
+
+So far, we learned about building simple and static layouts, but that is not enough to make real applications,
+since real applications is reactive; it listens to changes, and is capable of updating the interface based
+on some background activity or user interaction.
+
+We will build up our concepts by first understanding the reactive primitives, and best practices around
+reactive layouts.
+
+## Video Lecture
+
+<img src="/omega-guide-reactive-layouts.svg" style={{ borderRadius: "8px", marginTop: "20px" }} />
+
+## Application State
+
+Application state can be thought of a value, that describes the state of certain part of user-interface. For example,
+I can think of a game, whose **score** is a state, that might change based on how the player is performing.
+There are several parts of UI that change, which ultimately depends upon some external variable or factor.
+
+We can implement such a state in Omega, using the `State` class.
+
+```ts {1, 4} copy filename="src/service/counter.service.ts"
+import { State } from '@indivice/omega'
+
+//creates a state with 0 initial value
+const counter = new State(0)
+export counter
+```
+
+This counter, can now be used anywhere in your application, and changing the value of the counter, will change
+it everywhere the value is being consumed.
+
+It is not necessary to define a state in a service. Infact, states can be created and exported anywhere, as long
+as the state names are not conflicted.
+
+## State operators
+
+Now that we have defined our state, we need a way to work with it. Since a state is a class, you will have object
+methods, and static methods that helps in various operations
+
+### 1. Reading and Writing
+
+We can read the **current** value of a state, using the `.get()` method, and we can set a new value of the state
+using the `.set()` method.
+
+The reason why we do not directly mutate the values, is because there are additional functionality than just setting
+the value that runs in the background, which actually makes the state reactive.
+
+Let us see a simple example using the `counter` state we defined previously.
+
+```ts {1} copy filename="src/main.ts"
+import { counter } from './service/counter.service'
+
+//we will get 0 initially
+console.log(
+    counter.get()
+)
+
+counter.set(1)
+
+//we will now get 1
+console.log(
+    counter.get()
+)
+```
+Another method that changes the value of the state is '.update()' method. The `.update()` method works differently
+because it takes a callback, that must return the value we intend on setting, and it also gives you the current
+value as the callback argument.
+
+Let us see an example of why it is useful:
+
+```ts {1, 5} copy filename="src/main.ts"
+import { counter } from './service/counter.service'
+
+setInterval(() => {
+
+    counter.set( counter.get() + 1 )
+    console.log(
+        counter.get()
+    )
+
+}, 1000)
+```
+
+We can see in the highlighted portion, that the counter actually needs to increment it, because we cannot make assumptions
+about the previous value. If you run this, it will simply logs number counting from 0 every 1 second.
+
+While this is not necessarily bad, it becomes highly complex when dealing with arrays, objects or other nested components,
+which when becomes a burden to handle. We can write a cleaner version using `.update()` method:
+
+```ts {1, 5} copy filename="src/main.ts"
+import { counter } from './service/counter.service'
+
+setInterval(() => {
+
+    counter.update( prev => prev + 1 )
+    console.log(
+        counter.get()
+    )
+
+}, 1000)
+```
+
+### 2. Subscription and Batching
+
+Now that we are capable of creating a state, changing it's value, or updating it, we might also need to
+listen to changes too, and the type of change that happened.
+
+All reactivity in Omega is actually implemented on top of the **Subscription** method, since reactivity means
+change detection, and reactive layouts will need to know when the state is changing.
+
+We can listen to changes using the `.listen()` method. A callback is provided to that method, and whenever the
+state is changed, all the callbacks that are subscribed to that state are called one by one.
+
+Let us re-implement our counter using this:
+
+```ts {3-5} copy filename="src/main.ts"
+import { counter } from './service/counter.service'
+
+counter.listen(() => {
+    console.log(counter.get())
+})
+
+setInterval(() => {
+    counter.update( prev => prev + 1 )
+}, 1000)
+```
+
+This will have the same effect as manually loggin it, but it is more powerful, because if the state were
+to update from anywhere else, this callback will still be executed!
+
+The subscriber is actually a `Set`, so you can remove a subscriber if you happen to know the reference.
+You can actually get the reference, since it is returned by the listen method.
+
+```ts {6} filename="example.ts"
+//example code below
+const state = new State("Hello World!")
+const callback = state.listen(() => console.log(state.get()))
+
+//something happened, I want to remove the listener
+state.subscribers.delete(callback)
+```
+
+import { Callout } from 'nextra/components'
+ 
+<Callout type='warning'>
+While it seems very powerful that we can play around states unlike other frameworks/libraries,
+but there are certain things you need to be aware of:
+
+- Changing the value directly (which you can) will cause any of the subscribers to be **NOT** called,
+hence causing a `hidden-change`, which means changes that goes un-detected.
+
+- The `.delete()` method on the `.subscribers` member of the state can be played around too, but
+be careful! because there are also other subscribers that might be listening to it! You do not want
+to have unexpected behaviours, unless ofcourse you know what you are doing.
+</Callout>
+
+While all of this, we can also observe one problem, Repetion. Let me clarify by an example:
+
+```ts copy filename="src/main.ts"
+import { State } from '@indivice/omega'
+
+const firstName = new State("Mayukh")
+const lastName = new State("Chakraborty")
+
+const callback = firstName.listen(() => {
+    console.log(`Full name: ${ firstName.get() } ${ lastName.get() }`)
+})
+
+lastName.listen(callback)
+
+firstName.set("David")
+lastName.set("Jones")
+```
+
+The issue here is, when I am concurrently updating two states (i.e one after another), The function
+is called twice. 
+
+Though this will not take a toll on your performance, but imagine you had to update
+a lot of states at once, all of them have a common subscriber. That subscriber will be called that
+many times, and only the last call will be useful (because all updates will be finished.)
+
+This is where the concpet of Batching comes into play.
+
+```ts { 12-15 } copy filename="src/main.ts"
+import { State } from '@indivice/omega'
+
+const firstName = new State("Mayukh")
+const lastName = new State("Chakraborty")
+
+const callback = firstName.listen(() => {
+    console.log(`Full name: ${ firstName.get() } ${ lastName.get() }`)
+})
+
+lastName.listen(callback)
+
+State.batch( //static function to batch update
+    firstName.set("David", true) //set batching to true
+    lastName.set("Jones", true) //sets batching to true
+)
+```
+Now you'd see that the callback is called once, after all the values are updated.
+ 
+<Callout type='info'>
+Make sure you are listening to the same functions while batching!
+</Callout>
+
+## Hook functions
+
+Hooks in omega are just simple functions that starts with the prefix `use`. Hooks can be used
+anywhere, and can operate on anything.
+
+Hooks in omega are simply helper functions that helps the developer to abstract away messy code
+that would otherwise affect readibilty, with no effect on performance, rather hooks might even improve
+performance by doing things the right way.
+
+There are several built-in hooks in omega that looks after different aspects of your app, and we will
+look into them one by one.
+
+### The `useMemo()` Hook
+
+The `useMemo()` hook helps us to derive values from other states, and then tracks the changes of the
+said states. When any one of the state changes, the callback passed into the hook is called to re-build
+the new value.
+

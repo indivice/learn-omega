@@ -1,0 +1,98 @@
+# Getting Started with OmegaONE
+
+OmegaONE was designed in a way, that setting it up and developing apps using it would be a piece of cake.
+Given that Omega is a purely javascript framework, there are no need of compilers or any other transformers
+for Omega.
+
+import { Callout } from 'nextra/components'
+ 
+<Callout type='info'>
+    OmegaONE itself don't need a compiler to transform it to pure javascript, but if you are using libraries
+    like SCSS, then you'd need a compiler specific to that. 
+</Callout>
+
+
+## Video Lecture
+
+<img src="/omega-guide-getting-started.svg" style={{ borderRadius: "8px", marginTop: "20px" }} />
+
+## Installing OmegaONE
+
+### 1. Modular CDN
+
+Installing OmegaONE is a piece of cake. You can directly use it in your HTML using our **unique** modular import
+cdn.
+
+```html {10-16} copy
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Hello Omega</title>
+  </head>
+  <body>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "@indivice/omega/": "https://indivice.github.io/omega/dist/"
+        }
+      }
+    </script>
+
+    <div id="app"></div>
+    <script type="module">
+      import { Render } from '@indivice/omega/index.js';
+      import { Layout } from '@indivice/omega/components.js';
+
+      Render({
+        selector: '#app',
+        app: () => 
+            Layout.Column({
+                child: "Hello World"
+            })
+      })
+
+    </script>
+  </body>
+</html>
+```
+
+### 2. Using Vite
+
+Vite is a popular scaffolding tool to build production applications. You can use OmegaONE with Vite using the vanilla settings.
+OmegaONE is compatible with both **javascript** and **typescript**
+
+```bash copy
+$ cd my-vite-project
+my-vite-project~$ npm i @indivice/omega
+```
+
+### 3. Using Templates
+
+OmegaONE has for now, two basic templates that you can use directly without the hassle of setting things up. We are working on
+a CLI tool that would help you to customize your templates and tools. All the templates uses **Vite** under the hood.
+
+#### Javascript Template
+
+```bash copy
+$ npx degit https://github.com/indivice/omega/template/js my-project
+$ cd my-project
+my-project~$ npm i
+```
+
+#### Typescript Template
+
+```bash copy
+$ npx degit https://github.com/indivice/omega/template/ts my-project
+$ cd my-project
+my-project~$ npm i
+```
+## Next steps
+
+This section is more like tutorial; it goes through maximum features in a order where learning is easier; I
+try to keep the articles very simple, and small to help understand small chunks of concepts.
+
+The upcoming articles in this guide section assumes that you have created your project using **Vite**. Though, after
+completing this guide, you can implement the core knowledge to anywhere Omega runs.
